@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>BLE Positioning RSSI Measurements</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.2"></script>
     <style>
       tr:nth-child(even) {
         background-color: #d6eeee;
@@ -13,122 +15,21 @@
   </head>
   <body>
     <div>
-      <button onclick="deleteMeasurements();">Delete Measurements</button>
-      <button onclick="removeTables(); renderTables();">
-        Update Measurements
-      </button>
-      <div id="measurement-tables"></div>
+      <label>
+        Max RSSI Readings
+        <select id="max-data-select"></select>
+      </label>
+      <label>
+        Show Data
+        <select id="show-data-select">
+          <option value="unfiltered">Unfiltered</option>
+          <option value="filtered">Filtered</option>
+        </select>
+      </label>
     </div>
-    <script>
-      const url = "http://localhost:8009";
+    <div id="rssi-data"></div>
 
-      const removeTables = () => {
-        const measurementTables = document.getElementById("measurement-tables");
-        measurementTables.innerHTML = "";
-      };
-
-      const deleteMeasurements = async () => {
-        const deleteData = confirm("Are you sure?");
-
-        try {
-          if (deleteData) {
-            console.log("OK, deleting now");
-            const res = await (
-              await fetch(`${url}/delete_all_measurements`)
-            ).json();
-
-            const { data, message } = res;
-
-            if (data.measurementsDeleted) {
-              console.log(message);
-              removeTables();
-              renderTables();
-            } else {
-              throw new Error("Measurements were not deleted");
-            }
-          } else {
-            console.log("Deleteing cancelled");
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      };
-
-      const renderTables = async () => {
-        //Testing position IDs
-        const positionIDs = [1, 2, 3];
-        try {
-          //TODO: Refactor later
-          const allMeasurements = await Promise.all(
-            (positionIDs || []).map(async (id) => {
-              const positionData = (
-                await (await fetch(`${url}/get_measurements/${id}`)).json()
-              ).data;
-
-              return positionData;
-            })
-          );
-
-          console.log(allMeasurements);
-          const body = document.body;
-          const measurementTables =
-            document.getElementById("measurement-tables");
-
-          Object.keys(allMeasurements).forEach((measKey) => {
-            //Set header title
-            const header = document.createElement("h2");
-            header.innerText = `Position ${allMeasurements[measKey].positionId} Measurements`;
-
-            const table = document.createElement("table");
-            const firstRow = document.createElement("tr");
-
-            for (let i = 0; i < 5; i++) {
-              const th = document.createElement("th");
-
-              if (i === 0) th.innerText = "Measurement No.";
-              else th.innerText = `Beacon ${i} RSSI`;
-
-              firstRow.appendChild(th);
-            }
-
-            table.appendChild(firstRow);
-
-            //Create data rows
-            const posMeasurementsData = allMeasurements[measKey].measurements;
-            // console.log(
-            //   "Position id ",
-            //   allMeasurements[measKey].positionId,
-            //   posMeasurementsData
-            // );
-            posMeasurementsData.forEach((meas, rowIndex) => {
-              //Create data row
-              const dataRow = document.createElement("tr");
-              //Create measurements number cell
-              const measNumCell = document.createElement("td");
-              measNumCell.innerText = rowIndex + 1;
-              dataRow.appendChild(measNumCell);
-
-              Object.keys(meas).forEach((rssiMeasKey) => {
-                //Create data cells
-                const dataCell = document.createElement("td");
-                dataCell.innerText = meas[rssiMeasKey];
-                //Add data cell to row
-                dataRow.appendChild(dataCell);
-              });
-              //Add data row to table
-              table.appendChild(dataRow);
-            });
-
-            measurementTables.appendChild(header);
-            measurementTables.appendChild(table);
-          });
-
-          body.prepend(measurementTables);
-        } catch (error) {
-          console.log(error.message);
-        }
-      };
-      window.onload = renderTables;
-    </script>
+    <script src="/js/kalman.min.js"></script>
+    <script src="/js/rssi.js"></script>
   </body>
 </html>
