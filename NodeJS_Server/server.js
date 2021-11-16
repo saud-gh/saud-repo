@@ -16,8 +16,10 @@ const openDB = () =>
     console.log("Connected to the ble_positioning database.");
   });
 
-//For request body parsing
+//Request body parsing
 app.use(express.json());
+//Serving static files
+app.use(express.static("public"));
 
 app.get("/", (req, res) => {
   res.sendFile(path.resolve(__dirname, "index.html"));
@@ -31,14 +33,15 @@ const getLocationFromCamera = (beaconId) => {
 };
 
 //TODO: Refactor, Refactor, Refacor
+//TODO: Use async/await instead of callbacks [https://blog.pagesd.info/2019/10/29/use-sqlite-node-async-await/] OR sqlite-async package
 app.post("/send_rssi", (req, res) => {
   try {
     const { body } = req;
 
     if (!body) {
-      throw new Error("Not enough data...");
+      throw new Error("Data was not provided...");
     }
-    // Open db
+    //Open db
     const db = openDB();
     //Get beacon_id based on major and minor values
     db.get(
@@ -63,7 +66,7 @@ app.post("/send_rssi", (req, res) => {
         const currentTime = Date.now();
         //Earlier Timestamp
         const earierTimestamp = currentTime - timeframe;
-
+        //Get beacon location id
         db.get(
           "SELECT * FROM beacon_locations WHERE beacon_id=$bid AND timestamp>$ts",
           {
@@ -91,12 +94,12 @@ app.post("/send_rssi", (req, res) => {
             } else {
               //Get location from camera system if location id doesn't exist in db [Return 0 initially]
               const location = getLocationFromCamera(beacon_id);
-              //Store location in db
               const timestamp = Date.now();
               console.log(
                 "Location id not here, will create new one. This is timestamp -> ",
                 timestamp
               );
+              //Store location in db
               db.run(
                 `
                   INSERT INTO beacon_locations (beacon_id, location_x, location_y, timestamp)
@@ -125,7 +128,7 @@ app.post("/send_rssi", (req, res) => {
                         throw new Error(err.message);
                       }
 
-                      // Store rssi reading in db
+                      //Store rssi reading in db
                       db.run(
                         "INSERT INTO rssi_readings (beacon_loc_id, beacon_receiver_id,rssi) VALUES ($blid, $brid, $rssi)",
                         {
@@ -154,9 +157,62 @@ app.post("/send_rssi", (req, res) => {
     });
   } catch (error) {
     console.log(error.message);
-    res.status(200).json({
+    res.status(500).json({
       data: {
-        readingAdded: true,
+        readingAdded: false,
+      },
+      message: error.message,
+    });
+  }
+});
+
+app.get("/get_rssi/:beaconId", (req, res) => {
+  try {
+    if (!req?.params) {
+      throw new Error("Beacon id was not provided...");
+    }
+
+    const db = openDB();
+    const query = `
+    SELECT r_read.rssi_reading_id, r_read.rssi, bea_loc.beacon_id
+    FROM rssi_readings AS r_read
+    INNER JOIN beacon_locations AS bea_loc ON r_read.beacon_loc_id = bea_loc.beacon_loc_id
+    WHERE bea_loc.beacon_id = $bid
+    `;
+
+    // const query = "SELECT rssi_reading_id, rssi FROM rssi_readings";
+    const { beaconId } = req.params;
+    // console.log(beaconId);
+    const rows = [];
+    db.each(
+      query,
+      { $bid: beaconId },
+      (err, row) => {
+        if (err) {
+          throw new Error(err.message);
+        }
+
+        rows.push(row);
+      },
+      (err) => {
+        if (err) {
+          throw new Error(err.message);
+        }
+        // console.log(rows);
+
+        res.status(200).json({
+          data: {
+            rows,
+          },
+        });
+      }
+    );
+    db.close();
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({
+      data: {
+        readingReceived: false,
       },
       message: error.message,
     });
