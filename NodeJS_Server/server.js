@@ -62,7 +62,7 @@ app.post("/send_rssi", (req, res) => {
         const { beacon_id } = row;
 
         //Get beacon location depending on beacon_id and timeframe
-        const timeframe = 10 * 1000; //In milliseconds
+        const timeframe = 5 * 1000; //In milliseconds
         const currentTime = Date.now();
         //Earlier Timestamp
         const earierTimestamp = currentTime - timeframe;
@@ -174,7 +174,7 @@ app.get("/get_rssi/:beaconId", (req, res) => {
 
     const db = openDB();
     const query = `
-    SELECT r_read.rssi_reading_id, r_read.rssi, bea_loc.beacon_id
+    SELECT r_read.rssi_reading_id, r_read.rssi, bea_loc.beacon_id, bea_loc.timestamp
     FROM rssi_readings AS r_read
     INNER JOIN beacon_locations AS bea_loc ON r_read.beacon_loc_id = bea_loc.beacon_loc_id
     WHERE bea_loc.beacon_id = $bid
