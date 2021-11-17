@@ -4,7 +4,7 @@ let rawRssiData = [],
   beaconId = 1,
   filtered = false;
 
-const beaconIDs = [1, 2];
+const beaconIDs = [1];
 const filteredDataCaptions = [
   "RSSI Readings from BLE module",
   "RSSI readings from smartphone",
@@ -14,22 +14,21 @@ const dataDiv = document.getElementById("rssi-data");
 const maxDataSelect = document.getElementById("max-data-select");
 const showDataSelect = document.getElementById("show-data-select");
 
-const totalReadingValues = [
-  50, 100, 200, 300, 500, 800, 1200, 1800, 2400, 3000,
-];
-let total = totalReadingValues[0];
+const maxReadingValues = [50, 100, 200, 300, 500, 800, 1200, 1800, 2400, 3000];
+// const maxReadingValues = [50, 100, 200, 300, 500, 800, 1200, 1800, 2400, 3000];
+let max = maxReadingValues[0];
 
 //Fill the max readings select element with options
-totalReadingValues.forEach((val) => {
+maxReadingValues.forEach((val) => {
   const optionEl = document.createElement("option");
   optionEl.setAttribute("value", val);
   optionEl.innerText = val;
 
   maxDataSelect.appendChild(optionEl);
 });
-//Re-render the chart when the total number of reading changes
+//Re-render the chart when the max number of reading changes
 maxDataSelect.addEventListener("change", (event) => {
-  total = parseInt(event.target.value, 10);
+  max = parseInt(event.target.value, 10);
 
   //Remove previous chart
   while (dataDiv.firstChild) {
@@ -53,103 +52,72 @@ showDataSelect.addEventListener("change", (event) => {
 });
 
 const showUnfilteredData = () => {
-  plotChart({ data: receivedData });
+  plotChart({
+    caption: "Raw RSSI vs Averaged RSSI",
+    colors: ["blue"],
+    data: receivedData,
+  });
 };
 const showFilteredData = () => {
-  receivedData.forEach((dataArr) => {
-    console.log(getSmoothData(dataArr));
-    console.log(dataArr);
-    plotChart({
-      captions: filteredDataCaptions,
-      data: [dataArr, getSmoothData(dataArr)],
-    });
+  const rawRSSI = receivedData[0];
+  const averagedRSSI = getAveragedData(rawRSSI);
+  //Raw data vs Averaged data
+  plotChart({
+    caption: "Raw RSSI vs Averaged RSSI",
+    colors: ["red", "steelblue"],
+    data: [rawRSSI, averagedRSSI],
   });
-};
-
-const getSmoothData = (data) => {
-  let recentReadings = [],
-    filteredData = [];
-
-  data.forEach((dPoint, i) => {
-    if (recentReadings.length == 10) {
-      //Calculate the mean, rssiMean
-      const sum = recentReadings.reduce((acc, { rssi }) => acc + rssi, 0);
-      const rssiMean = sum / 10;
-      //Calculate the standard deviation, rssiStd
-      const devs = recentReadings.map(({ rssi }) => rssi - rssiMean); //Deviations
-      const sqrDevs = devs.map((dev) => dev * dev); //Squared deviations
-      const sumOfSqrDev = sqrDevs.reduce((acc, val) => acc + val, 0); //Sum of squared deviations
-      const rssiStd = Math.sqrt(sumOfSqrDev / 9);
-      // console.log(sumOfSqrDev);
-      // devs.forEach((dev, i) => console.log(dev + " ---> ", sqrDevs[i]));
-      //Remove readings below (rssiMean - 2 x rssiStd)
-      const shouldRemove = (rssi) => rssi < rssiMean - 2 * rssiStd;
-      const filteredRecentReadings = recentReadings.filter(
-        ({ rssi }) => !shouldRemove(rssi)
-      );
-      // console.log("Recent Readings", recentReadings);
-      // console.log("STD", rssiStd);
-      // console.log("Mean", rssiMean);
-      // console.log("Filtered", filteredRecentReadings);
-      // console.log("---------------------------------------------------------");
-
-      //Re-calculate the RSSI average for the remaining readings
-      const rssiAverage =
-        filteredRecentReadings.reduce((acc, { rssi }) => acc + rssi, 0) / 10;
-      //Push the RSSI value to filteredData
-      filteredData.push({ rssi: rssiAverage });
-      //Empty the recent readings
-      recentReadings = [];
-    }
-    recentReadings.push(dPoint);
+  //Raw data vs Filtered data
+  plotChart({
+    caption: "Raw RSSI vs Filtered RSSI (Kalman)",
+    colors: ["red", "steelblue"],
+    data: [rawRSSI, getFilteredData(rawRSSI)],
+  });
+  //Averaged data vs Filtered data
+  plotChart({
+    caption: "Averaged RSSI vs Filtered RSSI (Kalman)",
+    colors: ["red", "steelblue", "green"],
+    data: [rawRSSI, averagedRSSI, getFilteredData(averagedRSSI)],
   });
 
-  if (recentReadings.length > 0) {
-    recentReadings.forEach((reading) => {
-      filteredData.push(reading);
-    });
-  }
-
-  return filteredData;
+  console.log("Averaged =>> ", averagedRSSI);
+  console.log("Raw =>> ", rawRSSI);
 };
-const getFilteredData = (data) => {
-  //Define variables
-  const R = 0.008; //Low process noise, we assume that noise is caused by measurement
-  const Q = 15;
 
-  const kf = new KalmanFilter({ R, Q });
-
-  const filteredData = data.map((val) => ({
-    rssi_reading_id: val.rssi_reading_id,
-    rssi: kf.filter(val.rssi),
-  }));
-
-  return filteredData;
-};
 const plotChart = (options) => {
-  const { data, captions } = options;
-  //Slice the data depending on the total
-  const slicedData = data.map((dataArr) => {
-    return dataArr.slice(0, total - 1);
-  });
-  console.log(options);
-  //Re-draw the chart
-  dataDiv.appendChild(
-    Plot.plot({
-      height: 700,
-      width: 1660,
-      y: { label: "RSSI" },
-      x: { label: "Reading" },
-      marks: slicedData.map((lineData, i) =>
-        Plot.line(lineData, {
-          x: (d, ind) => ind + 1,
-          y: (d) => d.rssi,
-          stroke: i % 2 == 0 ? "red" : "steelblue",
-          caption: captions ? captions[i] : null,
-        })
-      ),
-    })
-  );
+  const { data, caption, colors } = options;
+  try {
+    if (!data || data.length < 0) throw new Error("No data provided!");
+
+    if (!colors || colors.length < 1) throw new Error("No colors provided!");
+
+    if (!caption) throw new Error("No caption provided!");
+
+    //Slice the data depending on the max
+    const slicedData = data.map((dataArr) => {
+      return dataArr.slice(0, max - 1);
+    });
+    // console.log(options);
+    //Re-draw the chart
+    dataDiv.appendChild(
+      Plot.plot({
+        height: 700,
+        width: 1660,
+        y: { label: "RSSI (dB)" },
+        x: { label: "Time (ms)" },
+        caption: caption,
+        marks: slicedData.map((lineData, i) =>
+          Plot.line(lineData, {
+            x: (d) => d.time,
+            y: (d) => d.rssi,
+            stroke: colors[i],
+          })
+        ),
+      })
+    );
+  } catch (error) {
+    console.log(error.message);
+  }
 };
 
 const getDataFromDB = async (beaconId) => {
@@ -168,19 +136,17 @@ const getDataFromDB = async (beaconId) => {
   }
 };
 
-const convertTimestamps = (dataArray) => {
-  let firstTimeStamp = 0;
+const getTime = (dataArray) => {
   return dataArray.map(({ timestamp, ...rest }, i) => {
     if (i === 0) {
-      firstTimeStamp = timestamp;
       return {
         ...rest,
-        time: 0,
+        time: 100,
       };
     } else {
       return {
         ...rest,
-        time: timestamp - firstTimeStamp,
+        time: 100 * i,
       };
     }
   });
@@ -190,9 +156,10 @@ const init = async () => {
   //Get data for both beacon and phone
   receivedData = (
     await Promise.all(beaconIDs.map(async (id) => await getDataFromDB(id)))
-  ).map((dataArr) => convertTimestamps(dataArr));
+  ).map((dataArr) => getTime(dataArr));
 
-  console.log(receivedData);
+  console.log("Received =>> ", receivedData);
+  // console.log(receivedData);
   showUnfilteredData();
 };
 
