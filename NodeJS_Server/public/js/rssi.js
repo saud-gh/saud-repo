@@ -57,11 +57,60 @@ const showUnfilteredData = () => {
 };
 const showFilteredData = () => {
   receivedData.forEach((dataArr) => {
+    console.log(getSmoothData(dataArr));
+    console.log(dataArr);
     plotChart({
       captions: filteredDataCaptions,
-      data: [dataArr, getFilteredData(dataArr)],
+      data: [dataArr, getSmoothData(dataArr)],
     });
   });
+};
+
+const getSmoothData = (data) => {
+  let recentReadings = [],
+    filteredData = [];
+
+  data.forEach((dPoint, i) => {
+    if (recentReadings.length == 10) {
+      //Calculate the mean, rssiMean
+      const sum = recentReadings.reduce((acc, { rssi }) => acc + rssi, 0);
+      const rssiMean = sum / 10;
+      //Calculate the standard deviation, rssiStd
+      const devs = recentReadings.map(({ rssi }) => rssi - rssiMean); //Deviations
+      const sqrDevs = devs.map((dev) => dev * dev); //Squared deviations
+      const sumOfSqrDev = sqrDevs.reduce((acc, val) => acc + val, 0); //Sum of squared deviations
+      const rssiStd = Math.sqrt(sumOfSqrDev / 9);
+      // console.log(sumOfSqrDev);
+      // devs.forEach((dev, i) => console.log(dev + " ---> ", sqrDevs[i]));
+      //Remove readings below (rssiMean - 2 x rssiStd)
+      const shouldRemove = (rssi) => rssi < rssiMean - 2 * rssiStd;
+      const filteredRecentReadings = recentReadings.filter(
+        ({ rssi }) => !shouldRemove(rssi)
+      );
+      // console.log("Recent Readings", recentReadings);
+      // console.log("STD", rssiStd);
+      // console.log("Mean", rssiMean);
+      // console.log("Filtered", filteredRecentReadings);
+      // console.log("---------------------------------------------------------");
+
+      //Re-calculate the RSSI average for the remaining readings
+      const rssiAverage =
+        filteredRecentReadings.reduce((acc, { rssi }) => acc + rssi, 0) / 10;
+      //Push the RSSI value to filteredData
+      filteredData.push({ rssi: rssiAverage });
+      //Empty the recent readings
+      recentReadings = [];
+    }
+    recentReadings.push(dPoint);
+  });
+
+  if (recentReadings.length > 0) {
+    recentReadings.forEach((reading) => {
+      filteredData.push(reading);
+    });
+  }
+
+  return filteredData;
 };
 const getFilteredData = (data) => {
   //Define variables
@@ -79,6 +128,7 @@ const getFilteredData = (data) => {
 };
 const plotChart = (options) => {
   const { data, captions } = options;
+  //Slice the data depending on the total
   const slicedData = data.map((dataArr) => {
     return dataArr.slice(0, total - 1);
   });
