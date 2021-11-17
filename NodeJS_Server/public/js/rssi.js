@@ -168,11 +168,29 @@ const getDataFromDB = async (beaconId) => {
   }
 };
 
+const convertTimestamps = (dataArray) => {
+  let firstTimeStamp = 0;
+  return dataArray.map(({ timestamp, ...rest }, i) => {
+    if (i === 0) {
+      firstTimeStamp = timestamp;
+      return {
+        ...rest,
+        time: 0,
+      };
+    } else {
+      return {
+        ...rest,
+        time: timestamp - firstTimeStamp,
+      };
+    }
+  });
+};
+
 const init = async () => {
   //Get data for both beacon and phone
-  receivedData = await Promise.all(
-    beaconIDs.map(async (id) => await getDataFromDB(id))
-  );
+  receivedData = (
+    await Promise.all(beaconIDs.map(async (id) => await getDataFromDB(id)))
+  ).map((dataArr) => convertTimestamps(dataArr));
 
   console.log(receivedData);
   showUnfilteredData();
