@@ -2,86 +2,53 @@ let rawRssiData = [],
   filteredRssiData = [],
   receivedData = [],
   beaconId = 1,
-  filtered = false;
+  filtered = false,
+  time = 20000;
 
 const beaconIDs = [1];
-const filteredDataCaptions = [
-  "RSSI Readings from BLE module",
-  "RSSI readings from smartphone",
-];
+
 //Get elements
 const dataDiv = document.getElementById("rssi-data");
-const maxDataSelect = document.getElementById("max-data-select");
-const showDataSelect = document.getElementById("show-data-select");
+const timeRange = document.getElementById("time-range");
+const timeValue = document.getElementById("time-value");
 
-const maxReadingValues = [50, 100, 200, 300, 500, 800, 1200, 1800, 2400, 3000];
-// const maxReadingValues = [50, 100, 200, 300, 500, 800, 1200, 1800, 2400, 3000];
-let max = maxReadingValues[0];
+timeValue.innerText = time + "ms";
+//Re-draw charts when time is changes
+timeRange.addEventListener("input", (event) => {
+  time = event.target.value;
 
-//Fill the max readings select element with options
-maxReadingValues.forEach((val) => {
-  const optionEl = document.createElement("option");
-  optionEl.setAttribute("value", val);
-  optionEl.innerText = val;
-
-  maxDataSelect.appendChild(optionEl);
-});
-//Re-render the chart when the max number of reading changes
-maxDataSelect.addEventListener("change", (event) => {
-  max = parseInt(event.target.value, 10);
-
-  //Remove previous chart
-  while (dataDiv.firstChild) {
-    dataDiv.removeChild(dataDiv.firstChild);
-  }
-
-  if (filtered) showFilteredData();
-  else showUnfilteredData();
+  timeValue.innerText = time + "ms";
+  showFilteredData();
 });
 
-//Re-render the charts when
-showDataSelect.addEventListener("change", (event) => {
-  filtered = event.target.value == "filtered";
-  //Remove previous chart
-  while (dataDiv.firstChild) {
-    dataDiv.removeChild(dataDiv.firstChild);
-  }
-
-  if (filtered) showFilteredData();
-  else showUnfilteredData();
-});
-
-const showUnfilteredData = () => {
-  plotChart({
-    caption: "Raw RSSI vs Averaged RSSI",
-    colors: ["blue"],
-    data: receivedData,
-  });
-};
 const showFilteredData = () => {
   const rawRSSI = receivedData[0];
   const averagedRSSI = getAveragedData(rawRSSI);
-  //Raw data vs Averaged data
+  //Remove previous charts
+  while (dataDiv.firstChild) {
+    dataDiv.removeChild(dataDiv.firstChild);
+  }
+  //Raw Data vs Averaged Data
   plotChart({
     caption: "Raw RSSI vs Averaged RSSI",
     colors: ["red", "steelblue"],
     data: [rawRSSI, averagedRSSI],
   });
-  //Raw data vs Filtered data
+  //Raw Data vs Filtered Data
   plotChart({
     caption: "Raw RSSI vs Filtered RSSI (Kalman)",
     colors: ["red", "steelblue"],
     data: [rawRSSI, getFilteredData(rawRSSI)],
   });
-  //Averaged data vs Filtered data
+  //Averaged Data vs Filtered Data
   plotChart({
     caption: "Averaged RSSI vs Filtered RSSI (Kalman)",
     colors: ["red", "steelblue", "green"],
     data: [rawRSSI, averagedRSSI, getFilteredData(averagedRSSI)],
   });
 
-  console.log("Averaged =>> ", averagedRSSI);
-  console.log("Raw =>> ", rawRSSI);
+  // console.log("Averaged =>> ", averagedRSSI);
+  // console.log("Raw =>> ", rawRSSI);
 };
 
 const plotChart = (options) => {
@@ -93,16 +60,16 @@ const plotChart = (options) => {
 
     if (!caption) throw new Error("No caption provided!");
 
-    //Slice the data depending on the max
+    //Slice the data depending on the time
     const slicedData = data.map((dataArr) => {
-      return dataArr.slice(0, max - 1);
+      return dataArr.filter((dPoint) => dPoint.time <= time);
     });
-    // console.log(options);
     //Re-draw the chart
     dataDiv.appendChild(
       Plot.plot({
         height: 700,
         width: 1660,
+        grid: true,
         y: { label: "RSSI (dB)" },
         x: { label: "Time (ms)" },
         caption: caption,
@@ -158,9 +125,7 @@ const init = async () => {
     await Promise.all(beaconIDs.map(async (id) => await getDataFromDB(id)))
   ).map((dataArr) => getTime(dataArr));
 
-  console.log("Received =>> ", receivedData);
-  // console.log(receivedData);
-  showUnfilteredData();
+  showFilteredData();
 };
 
 window.addEventListener("DOMContentLoaded", init);
