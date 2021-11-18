@@ -32,7 +32,7 @@ const getLocationFromCamera = (beaconId) => {
   };
 };
 
-//TODO: Refactor, Refactor, Refacor
+//TODO: Refactor, Refactor, Refactor
 //TODO: Use async/await instead of callbacks [https://blog.pagesd.info/2019/10/29/use-sqlite-node-async-await/] OR sqlite-async package
 app.post("/send_rssi", (req, res) => {
   try {
@@ -115,7 +115,6 @@ app.post("/send_rssi", (req, res) => {
                   if (err) {
                     throw new Error(err.message);
                   }
-
                   //Get location id
                   db.get(
                     "SELECT * FROM beacon_locations WHERE beacon_id=$bid AND timestamp=$ts",
@@ -127,7 +126,6 @@ app.post("/send_rssi", (req, res) => {
                       if (err) {
                         throw new Error(err.message);
                       }
-
                       //Store rssi reading in db
                       db.run(
                         "INSERT INTO rssi_readings (beacon_loc_id, beacon_receiver_id,rssi) VALUES ($blid, $brid, $rssi)",
@@ -180,10 +178,9 @@ app.get("/get_rssi/:beaconId", (req, res) => {
     WHERE bea_loc.beacon_id = $bid
     `;
 
-    // const query = "SELECT rssi_reading_id, rssi FROM rssi_readings";
     const { beaconId } = req.params;
-    // console.log(beaconId);
     const rows = [];
+
     db.each(
       query,
       { $bid: beaconId },
@@ -198,8 +195,6 @@ app.get("/get_rssi/:beaconId", (req, res) => {
         if (err) {
           throw new Error(err.message);
         }
-        // console.log(rows);
-
         res.status(200).json({
           data: {
             rows,

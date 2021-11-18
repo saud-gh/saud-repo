@@ -28,6 +28,7 @@ const showFilteredData = () => {
   while (dataDiv.firstChild) {
     dataDiv.removeChild(dataDiv.firstChild);
   }
+
   //Raw Data vs Averaged Data
   plotChart({
     caption: "Raw RSSI vs Averaged RSSI",
@@ -54,10 +55,8 @@ const showFilteredData = () => {
 const plotChart = (options) => {
   const { data, caption, colors } = options;
   try {
-    if (!data || data.length < 0) throw new Error("No data provided!");
-
+    if (!data || data.length < 1) throw new Error("No data provided!");
     if (!colors || colors.length < 1) throw new Error("No colors provided!");
-
     if (!caption) throw new Error("No caption provided!");
 
     //Slice the data depending on the time
