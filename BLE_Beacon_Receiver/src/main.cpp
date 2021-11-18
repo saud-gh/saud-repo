@@ -18,10 +18,9 @@ bool scanEnable = true;
 
 const char* ssid = "Aphcarios";
 const char* password = "aphcarios2019";
-const char* postUrl = "http://192.168.1.110:8009/send_rssi";
+const char* postUrl = "http://192.168.1.112:8009/send_rssi";
 
 std::string myBeaconUuid = "71278bda-b644-4520-8f0c-720eaf059935";
-
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
@@ -84,7 +83,7 @@ void setup() {
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
   pBLEScan->setInterval(100);
-  pBLEScan->setWindow(60);  //less or equal setInterval value
+  pBLEScan->setWindow(99);  //less or equal setInterval value
 
   //WiFi setup
   WiFi.begin(ssid, password);
@@ -97,8 +96,6 @@ void setup() {
   Serial.println("");
   Serial.print(F("Connected to WiFi network with IP Address: "));
   Serial.println(WiFi.localIP());
-
-
 }
 
 void loop() {
