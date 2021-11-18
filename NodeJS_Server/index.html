@@ -7,25 +7,24 @@
     <title>BLE Positioning RSSI Measurements</title>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.2"></script>
-    <style>
-      tr:nth-child(even) {
-        background-color: #d6eeee;
-      }
-    </style>
   </head>
   <body>
     <div>
-      <label>
-        Max RSSI Readings
-        <select id="max-data-select"></select>
-      </label>
-      <label>
-        Show Data
-        <select id="show-data-select">
-          <option value="unfiltered">Unfiltered</option>
-          <option value="filtered">Filtered</option>
-        </select>
-      </label>
+      <div>
+        <label>
+          Time Range
+          <input
+            type="range"
+            max="300000"
+            min="1000"
+            value="20000"
+            step="500"
+            style="width: 450px"
+            id="time-range"
+          />
+        </label>
+        <span id="time-value"></span>
+      </div>
     </div>
     <div id="rssi-data"></div>
 
